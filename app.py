@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, UpdateForm
-from models import db, connect_db, User, Message, bcrypt
+from models import db, connect_db, User, Message, Likes, bcrypt
 
 CURR_USER_KEY = "curr_user"
 
@@ -155,6 +155,17 @@ def users_show(user_id):
     return render_template('users/show.html', user=user, messages=messages)
 
 
+@app.route('/users/<int:user_id>/likes')
+def show_likes(user_id):
+    """Show user likes"""
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/login")
+    #show likes in order
+    messages = g.user.likes
+    return render_template('users/likes.html', user=g.user, likes=messages)
+
+
 @app.route('/users/<int:user_id>/following')
 def show_following(user_id):
     """Show list of people this user is following."""
@@ -224,6 +235,7 @@ def profile():
             g.user.image_url = form.image_url.data
             g.user.header_image_url = form.header_image_url.data
             g.user.email = form.email.data
+            g.user.location = form.location.data
             db.session.commit()
             return redirect(f'/users/{g.user.id}')
         else:
@@ -288,7 +300,7 @@ def messages_destroy(message_id):
 
     if not g.user:
         flash("Access unauthorized.", "danger")
-        return redirect("/")
+        return redirect("/login")
 
     msg = Message.query.get(message_id)
     db.session.delete(msg)
@@ -296,6 +308,22 @@ def messages_destroy(message_id):
 
     return redirect(f"/users/{g.user.id}")
 
+
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+def add_like(message_id):
+    """Add and remove like to the message"""
+    if not g.user:
+        flash("Please login first")
+        return redirect('/login')
+
+    msg = Message.query.get(message_id)
+    if msg not in g.user.likes:
+        g.user.likes.append(msg)
+    else:
+        like = Likes.query.filter(Likes.user_id==g.user.id, Likes.message_id==message_id).one()
+        db.session.delete(like)
+    db.session.commit()
+    return redirect(request.referrer)
 
 ##############################################################################
 # Homepage and error pages
@@ -315,9 +343,7 @@ def homepage():
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
-
-        return render_template('home.html', messages=messages)
-
+        return render_template('home.html', messages=messages)   
     else:
         return render_template('home-anon.html')
 

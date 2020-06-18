@@ -38,7 +38,7 @@
 
   <div class="col-lg-6 col-md-8 col-sm-12">
     <ul class="list-group" id="messages">
-      {% for msg in messages[:100] if msg.user in g.user.following %}
+      {% for msg in messages if msg.user in g.user.following or msg.user == g.user %}
       <li class="list-group-item">
         <!-- The entire item is clickable and lead to the warble itself -->
         <a href="/messages/{{ msg.id  }}" class="message-link" />
@@ -54,7 +54,7 @@
           <button class="
                 btn 
                 btn-sm 
-                {{'btn-primary' if msg.id in likes else 'btn-secondary'}}">
+                {{'btn-primary' if msg in g.user.likes else 'btn-secondary'}}">
             <i class="fa fa-thumbs-up"></i>
           </button>
         </form>
